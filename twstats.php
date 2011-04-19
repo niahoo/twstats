@@ -162,24 +162,23 @@ class TWStats_Counter {
 		$rows = $rs->fetchAll(PDO::FETCH_ASSOC);
 		
 		/* Ici la technique est simple :
-		 * 	- 0 la section est créée, avec un parent si le tableau n'est 
-		 *  pas vide
 		 * 	- 1 seule ligne, la section est trouvée
 		 *  - X lignes, on compare le parent_id avec une récursion sur la 
-		 *  case suivante du tableau $path
+		 *  pile $path
 		 */
 		
 		$num_rows = count($rows);
-		if ($num_rows == 0)
-				$parent_id_to_register = count($path) ? 
-					$this->getSectionId($path) : 0;
-		elseif ($num_rows == 1)
+		
+		if ($num_rows == 1)
 			return $rows[0]['id'];
-		else 
+		else {
+			$parent_id = $this->getSectionId($path)
 			foreach ($rows as $row) 
-				if ($row['parent_id'] === $this->getSectionId($sections));
+				if ($row['parent_id'] == $parent_id);
 					return $row['id'];
-				   
+			// ici aucune correspondance n'a été établie, on crée			
+			return $this->registerNewSection($section_name, $parent_id);
+		}
 		
 	}
 

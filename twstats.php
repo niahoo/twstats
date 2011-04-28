@@ -189,15 +189,14 @@ class TWStats_Counter {
 	 * @return int
 	 */
 	private function registerNewSection($name, $parent_id) {
-		$sql_insert = sprintf(
-						'insert into %ssections (name, parent_id) VALUES (\'%s\', %d)',
-						$this->conf('table_prefix'),
-						$name,
-						$parent_id
-		);
 		$pdo = $this->conf('pdo');
+		$statement = $pdo->prepare(sprintf(
+						'insert into %ssections (name, parent_id) VALUES (:name, :parent_id)',
+						$this->conf('table_prefix')));
+						
+	
 		try {
-			$exec = $pdo->exec($sql_insert);
+			$statement->execute(array('name' => $name, 'parent_id' => $parent_id));
 		} catch (PDOException $e) {
 			throw new PDOException('[registerNewSection] ' . $e->getMessage(),
 					$e->getCode());
@@ -214,19 +213,14 @@ class TWStats_Counter {
 	 */
 	private function registerNewCounter($strkey, $section_id) {
 		
-		
-		$sql_insert = sprintf(
-						'insert into %scounters (`strkey`, section_id) VALUES (\'%s\', %d)',
-						$this->conf('table_prefix'),
-						$strkey,
-						$section_id
-		);
-// exit($sql_insert);
 		$pdo = $this->conf('pdo');
+		$statement = $pdo->prepare(sprintf(
+						'insert into %scounters (strkey, section_id) VALUES (:strkey, :section_id)',
+						$this->conf('table_prefix')));
+
 		try {
-			$exec = $pdo->exec($sql_insert);
+			$statement->execute(array('strkey' => $strkey, 'section_id' => $section_id));
 		} catch (PDOException $e) {
-			
 			throw $e;
 		}
 		

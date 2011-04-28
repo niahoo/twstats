@@ -21,39 +21,31 @@ SET SQL_MODE="NO_AUTO_VALUE_ON_ZERO";
 
 -- --------------------------------------------------------
 
---
--- Structure de la table `item`
---
 
-CREATE TABLE IF NOT EXISTS `keys` (
+
+CREATE TABLE IF NOT EXISTS `counters` (
   `id` int(10) NOT NULL AUTO_INCREMENT,
-  `str` varchar(50) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
+  `strkey` varchar(50) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
   `name` varchar(100) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL,
   `section_id` int(10) NOT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `counter_by_section` (`str`,`section_id`)
+  UNIQUE KEY `counter_by_section` (`strkey`,`section_id`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=6 ;
 
 -- --------------------------------------------------------
 
---
--- Structure de la table `item_day`
---
 
-CREATE TABLE IF NOT EXISTS `keys_days` (
-  `key_id` int(10) NOT NULL,
+CREATE TABLE IF NOT EXISTS `counters_days` (
+  `counter_id` int(10) NOT NULL,
   `day_date` date NOT NULL,
   `hits` int(10) NOT NULL,
   `visits` int(10) NOT NULL,
   `day_visits` int(10) NOT NULL,
-  PRIMARY KEY (`key_id`,`day_date`)
+  PRIMARY KEY (`counter_id`,`day_date`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 
 -- --------------------------------------------------------
 
---
--- Structure de la table `section`
---
 
 CREATE TABLE IF NOT EXISTS `sections` (
   `id` int(10) NOT NULL AUTO_INCREMENT,

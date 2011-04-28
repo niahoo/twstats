@@ -1,35 +1,43 @@
 <?php
 
-/**
- * Compteur twstats
- * Copyright Ludovic Demblans © 2010
- */
+## Attention,
+## Les clés section_id et counter_id sont enregistrées dès lors qu'on
+## essaie de les lire depuis l'objet
+## La lecture de counter_id() déclenche également l'enregistrement de 
+## la section
+## Les cookies et sessions, ainsi que les valeurs hit/visit/dayvisit
+## ne sont modifiées que lors du commit
+
+
+
 
 /**
  * Classe qui sert à recevoir la configuration de la base de données
  * et à distribuer des objets counter / reader
  */
+ 
 class TWStats_Counter {
 
 	public $_conf;
-	/**
-	 * Clé primaire de l'item dans la BDD
-	 * @var int
-	 */
-	private $keyid;
+
 	
 	/**
 	 * Chemin dans les sections, sous forme de tableau
 	 * exemple array('annuaire', 'immolocationoffre', 'ApptT2')
 	 */ 
-	private $path;
-	private $section_id;
-	private $key;
+	public $_path;
+
+	public $_key;
+	
+	public $_counter_id;
+	public $_section_id;
+	
+	
 	/**
 	 * Champs à incrémenter. une valeur de 3 incrémentera les hits et visites
 	 * @var binary,int
 	 */
-	private $increments;
+	public $increments;
 
 	/**
 	 * valeur de retour possible pour getSectionIDByPath
@@ -53,6 +61,8 @@ class TWStats_Counter {
 		if (!isset($conf['session_hash']) || !isset($conf['cookie_date_hash']) ||
 			!isset($conf['cookie_ids_hash']) || !isset($conf['pdo']))
 			throw new InvalidArgumentException('Bad configuration');
+		
+		
 		if (!($conf['pdo'] instanceof PDO))
 			throw new InvalidArgumentException('conf[pdo] is not a PDO instance');
 		
@@ -77,12 +87,15 @@ class TWStats_Counter {
 		
 		if ((string) $key == '')
 			throw new InvalidArgumentException('Empty key');
-		$this->key  = $key;
+		$this->_key  = $key;
 		
 		$this->increments = 0;
 		
-		if (!isset($this->conf['table_prefix']))
-			$this->conf['table_prefix'] = '';
+		if (!isset($this->_conf['table_prefix']))
+			$this->_conf['table_prefix'] = '';
+		
+		
+
 		
 	}
 
@@ -93,50 +106,35 @@ class TWStats_Counter {
 		);
 	}
 
-//==============================================================================
-//=================== CLE DU COMPTEUR ==========================================
-//==============================================================================
-
-	/**
-	 * Reçoit la clé (key) et le chemin de l'item dans les sections afin de
-	 * trouver la clé primaire de l'item.
-	 * Par item on entend élément auquel on associe un compteur.
-	 * Si les variables $register_new_sections et $register_new_keys sont
-	 * passées à false, on déclenche une exception en cas de clé ou de section
-	 * inconnues.
-	 *
-	 * @param array $sections
-	 * @param string $key
-	 * @param bool $register_new_keys
-	 * @param bool $register_new_sections
-	 */
-	public function counter($sections, $key, $register_new_keys=true, $register_new_sections=true) {
-
-		$section_id = $this->getSectionId($sections);
-
-		$sql_key_exists = sprintf(
-						'select id from %1$sitem as i ' .
-						'where i.strkey like \'%2$s\' and i.section_id = %3$d',
-						self::$configuration['table_prefix'],
-						$key,
-						$section_id
-		);
-		$rs = self::$configuration['pdo_instance']->query($sql_key_exists);
-		$rows = $rs->fetchAll();
-		$num_rows = count($rows);
-		if ($num_rows == 0)
-			if ($register_new_keys)
-				$this->keyid = $this->registerNewKey($key, $section_id);
-			else
-				throw new InvalidArgumentException('Bad key');
-		elseif ($num_rows == 1) {
-			$this->keyid = $rows[0][0];
-		}
-
-		$this->section_id = $section_id;
-
-		return $this;
+	public function section_id() {
+		if (empty($this->_section_id))
+			$this->_section_id = $this->sectionIDFromPath($this->path);
+		return $this->_section_id;
+		
 	}
+	
+	public function counter_id() {
+		if (empty($this->_key_id)) {
+			$query = sprintf('select * from %scounters where strkey like
+			\'%s\' and section_id = %d',
+			$this->conf('table_prefix'),
+			$this->_key,
+			$this->section_id());
+			
+			$rs_a = $this->conf('pdo')->query($query)->fetchAll(PDO::FETCH_ASSOC);
+			
+			$count = count($rs_a);
+			if ($count == 0)
+				$this->_counter_id = $this->registerNewCounter($this->_key, $this->section_id());
+			elseif ($count == 1)
+				$this->_counter_id = intval($rs_a[0]['id']);
+			else
+				throw new Exception("duplicate strkey/section_id .. too bad! ($count found)");
+		
+		}
+		return $this->_counter_id;
+	}
+
 
 //==============================================================================
 //=================== CREATION DES CLES ET DES SECTIONS ========================
@@ -147,18 +145,18 @@ class TWStats_Counter {
 	 * renvoie l'id d'une section selon le path, les sections sont créées
 	 * si elles n'existent pas
 	 */
-	private function getSectionId($path) {
+	private function sectionIDFromPath($path) {
 	  
 		if (count($path) == 0)
 			return 0;
 
-		$section_name = array_pop($sections);
+		$section_name = array_pop($path); // <-- POP!
 		$sql_id_by_name = sprintf(
 						'select id, parent_id from %ssections where name like \'%s\'',
-						self::$configuration['table_prefix'],
+						$this->conf('table_prefix'),
 						$section_name
 		);
-		$rs = self::$configuration['pdo_instance']->query($sql_id_by_name);
+		$rs = $this->conf('pdo')->query($sql_id_by_name);
 		$rows = $rs->fetchAll(PDO::FETCH_ASSOC);
 		
 		/* Ici la technique est simple :
@@ -169,17 +167,16 @@ class TWStats_Counter {
 		
 		$num_rows = count($rows);
 		
-		if ($num_rows == 1)
-			return $rows[0]['id'];
-		else {
-			$parent_id = $this->getSectionId($path)
+		// if ($num_rows == 1)
+// 			return $rows[0]['id'];
+		// else {
+			$parent_id = $this->sectionIDFromPath($path); // <-- see POP
 			foreach ($rows as $row) 
-				if ($row['parent_id'] == $parent_id);
+				if ($row['parent_id'] == $parent_id)
 					return $row['id'];
 			// ici aucune correspondance n'a été établie, on crée			
 			return $this->registerNewSection($section_name, $parent_id);
-		}
-		
+		// }	
 	}
 
 
@@ -193,17 +190,17 @@ class TWStats_Counter {
 	 */
 	private function registerNewSection($name, $parent_id) {
 		$sql_insert = sprintf(
-						'insert into %ssection (name, parent_id) VALUES (\'%s\', %d)',
-						self::$configuration['table_prefix'],
+						'insert into %ssections (name, parent_id) VALUES (\'%s\', %d)',
+						$this->conf('table_prefix'),
 						utf8_encode($name),
 						$parent_id
 		);
-		$pdo = self::$configuration['pdo_instance'];
+		$pdo = $this->conf('pdo');
 		try {
 			$exec = $pdo->exec($sql_insert);
 		} catch (PDOException $e) {
 			throw new PDOException('[registerNewSection] ' . $e->getMessage(),
-					$e->getCode(), $e->getPrevious());
+					$e->getCode());
 		}
 		return $pdo->lastInsertId();
 	}
@@ -215,22 +212,26 @@ class TWStats_Counter {
 	 * @param int $section_id
 	 * @return int
 	 */
-	private function registerNewKey($key, $section_id) {
+	private function registerNewCounter($strkey, $section_id) {
+		
+		
 		$sql_insert = sprintf(
-						'insert into %sitem (`strkey`, section_id) VALUES (\'%s\', %d)',
-						self::$configuration['table_prefix'],
-						utf8_encode($key),
+						'insert into %scounters (`strkey`, section_id) VALUES (\'%s\', %d)',
+						$this->conf('table_prefix'),
+						utf8_encode($strkey),
 						$section_id
 		);
 // exit($sql_insert);
-		$pdo = self::$configuration['pdo_instance'];
+		$pdo = $this->conf('pdo');
 		try {
 			$exec = $pdo->exec($sql_insert);
 		} catch (PDOException $e) {
-			throw new PDOException('[registerNewKey] ' . $e->getMessage(),
-					$e->getCode(), $e->getPrevious());
+			
+			throw $e;
 		}
-		return $pdo->lastInsertId();
+		
+		
+		return intval($pdo->lastInsertId());
 	}
 
 	/*	 * é
@@ -259,10 +260,13 @@ class TWStats_Counter {
 	 * session
 	 */
 	public function visit() {
+		
+		if (!session_id())
+			session_start();
+		
 		if (isset($_SESSION)
-				&& !isset($_SESSION[self::session_hash][$this->keyid])) {
-			$this->increments = $this->increments | self::increment_visit;
-			$_SESSION[self::session_hash][$this->keyid] = 'increment';
+				&& !isset($_SESSION[$this->conf('session_hash')][$this->counter_id()])) {
+			$this->increments = $this->increments | self::increment_visit;			
 		}
 		return $this;
 	}
@@ -275,27 +279,32 @@ class TWStats_Counter {
 	public function dayvisit() {
 		$today = (int) date('Ymd');
 		/* si le cookie n'est pas du jour */
-		if (!isset($_COOKIE[self::cookie_date_hash])
-				|| (int) $_COOKIE[self::cookie_date_hash] != $today) {
-			$this->increments = $this->increments | self::increment_dayvisit;
-			$this->setDateCookie();
-			$this->addKey2Cookie();
-		}
-		/* si le cookie est du jour, on va voir si la page actuelle est vue */ elseif ($this->addKey2Cookie()) {
+		if (!$this->already_visited_today() ||
+			(int) $_COOKIE[$this->conf('cookie_date_hash')] != $today) {
 			$this->increments = $this->increments | self::increment_dayvisit;
 		}
+		/* si le cookie est du jour, on va voir si la page actuelle est vue */ 
 		return $this;
 	}
 
+	public function already_visited_today() {
+		return (
+			isset($_COOKIE[$this->conf('cookie_date_hash')]) && 
+			(int) $_COOKIE[$this->conf('cookie_date_hash')] == (int) date('Ymd') &&
+			isset($_COOKIE[$this->conf('cookie_ids_hash')]) && 
+			strstr($_COOKIE[$this->conf('cookie_ids_hash')], '_' . $this->counter_id()) !== false
+		);
+	}
+
 	/**
-	 * Remplace ou crée le cookie self::cookie_date_hash par la date du jour
+	 * Remplace ou crée le cookie $this->cookie_date_hash par la date du jour
 	 */
 	private function setDateCookie() {
 		$today = (int) date('Ymd');
 		$expire = time() + 3600 * 24; // 1 jour
-		setcookie(self::cookie_date_hash, $today, $expire);
-		/* On supprime également les pages du jour précédent */
-		setcookie(self::cookie_ids_hash);
+		return 
+			setcookie($this->conf('cookie_date_hash'), $today, $expire) &&
+			setcookie($this->conf('cookie_ids_hash')); // On supprime également les pages du jour précédent		
 	}
 
 	/**
@@ -303,14 +312,16 @@ class TWStats_Counter {
 	 */
 	private function addKey2Cookie() {
 		$expire = time() + 3600 * 24; // 1 jour
-		if (isset($_COOKIE[self::cookie_ids_hash]))
-			if (strstr($_COOKIE[self::cookie_ids_hash], '_' . $this->keyid))
-				return false; // inutile d'ajouter l'id, il y est déjà
- else
-				$base_str = $_COOKIE[self::cookie_ids_hash];
-		else
+		
+		if ($this->already_visited_today())
+			return false;
+		
+		if (isset($_COOKIE[$this->conf('cookie_ids_hash')]))
+			$base_str = $_COOKIE[$this->conf('cookie_ids_hash')];
+		else 
 			$base_str = '';
-		setcookie(self::cookie_ids_hash, $base_str . '_' . $this->keyid, $expire);
+			
+		setcookie($this->conf('cookie_ids_hash'), $base_str . '_' . $this->counter_id(), $expire);		
 		return true;
 	}
 
@@ -343,14 +354,17 @@ class TWStats_Counter {
 	 */
 	public function commit($try_insert=true) {
 		$sql_update = sprintf(
-						'update %sitem_day' .
-						' set %s where item_id = %s and countday = date(now())',
-						self::$configuration['table_prefix'],
+						'update %scounters_days' .
+						' set %s where counter_id = %s and day_date = date(now())',
+						$this->conf('table_prefix'),
 						$this->getIncrementsQuery(),
-						$this->keyid
+						$this->counter_id()
 		);
 
-		$rowcount = self::$configuration['pdo_instance']->exec($sql_update);
+	
+
+
+		$rowcount = $this->conf('pdo')->exec($sql_update);
 		if ($rowcount != 1 && $try_insert) {
 			// ici, enregistrer le compteur à la date du jour dans la base,
 			// puis réessayer
@@ -361,7 +375,14 @@ class TWStats_Counter {
 			 * comme ça pas de boucle infinie
 			 */
 		}
-
+		
+		/* Si une visit à été demandée, commit sur la session */
+		$_SESSION[$this->conf('session_hash')][$this->counter_id()] = 'increment';
+		
+		/* Si une dayvisit à été demandée, on commit aussi sur les cookies */
+		$this->increments & self::increment_dayvisit &&				
+		$this->setDateCookie() && $this->addKey2Cookie();
+		
 		$this->increments = 0;
 		return $this;
 	}
@@ -371,30 +392,90 @@ class TWStats_Counter {
 	 */
 	private function registerNewCountDay() {
 		$sql_insert = sprintf(
-						'insert into %sitem_day' .
-						' (item_id, countday, hits,visits, day_visits)' .
+						'insert into %scounters_days' .
+						' (counter_id, day_date, hits,visits, day_visits)' .
 						' VALUES (%d, date(now()), 0,0,0)',
-						self::$configuration['table_prefix'],
-						$this->keyid
+						$this->conf('table_prefix'),
+						$this->counter_id()
 		);
-		$exec = self::$configuration['pdo_instance']->exec($sql_insert);
+		$exec = $this->conf('pdo')->exec($sql_insert);
 	}
 
+	public function conf($key) { return $this->_conf[$key]; }
+
 //==============================================================================
-//=================== LECTURE DES COMPTEURS ====================================
+//========================== LECTURE DES COMPTEURS =============================
 //==============================================================================
+
+	/**
+	 * $day_date = format Y-m-d
+	 * */
+	public function read_date($day_date) {
+		
+		
+		$sql = sprintf(
+			'select hits, visits, day_visits from %scounters_days ' .
+			'where counter_id = :counter_id and day_date = :day_date',
+			$this->conf('table_prefix'));
+		$statement = $this->conf('pdo')->prepare($sql);				
+		$statement->execute(array('counter_id' => $this->counter_id(),
+								  'day_date' => $day_date));
+		if ($statement->rowCount())
+			return $statement->fetch(PDO::FETCH_ASSOC);
+		else return array('hits'=>0,'visits'=>0,'day_visits'=>0);
+	}
+
+	/*
+	 * both date params included
+	 * */
+	public function read_interval($day_date_start, $day_date_end) {
+		
+		
+		$sql = sprintf(
+			'select hits, visits, day_visits from %scounters_days ' .
+			'where counter_id = :counter_id and 
+			day_date >= :day_date_start and 
+			day_date <= :day_date_end',
+			$this->conf('table_prefix'));
+		$statement = $this->conf('pdo')->prepare($sql);				
+		$statement->execute(array('counter_id' => $this->counter_id(),
+								  'day_date_start' => $day_date_start,
+								  'day_date_end' => $day_date_end));
+		return $statement->fetchAll(PDO::FETCH_ASSOC);
+	}
+
 }
 
-function twstats($conf) {
-	return new TWStats($conf);
-}
 
-class TWStats_UI extends TWStats {
+
+class TWStats_UI {
+
+	private $_conf;
 
 	public function __construct($conf) {
-		parent::__construct($conf);
+		if (!($conf['pdo'] instanceof PDO))
+			throw new InvalidArgumentException('conf[pdo] is not a PDO instance');
+			
+		$this->_conf = $conf;	
+			
+		if (!isset($this->_conf['table_prefix']))
+			$this->_conf['table_prefix'] = '';
+		
+		$this->_pdo  = $conf['pdo'];
+		$this->_conf['previous_pdo_errmode'] = $this->_pdo->getAttribute(PDO::ATTR_ERRMODE);
+		$this->_pdo->setAttribute(
+			PDO::ATTR_ERRMODE,
+			PDO::ERRMODE_EXCEPTION
+		);	
 	}
-
+	
+	
+	public function __destruct() {
+		$this->_pdo->setAttribute(
+			PDO::ATTR_ERRMODE,
+			$this->_conf['previous_pdo_errmode']
+		);
+	}
 	/**
 	 * Renvoie les sous-sections de la section passée en paramètre,
 	 * on passe l'ID
@@ -404,11 +485,11 @@ class TWStats_UI extends TWStats {
 	public function getSubSections_loop($parent_section_id) {
 		$sections = array();
 		$sql = sprintf(
-						'select * from `%ssection` where `parent_id` = %d',
-						self::$configuration['table_prefix'],
+						'select * from `%ssections` where `parent_id` = %d',
+						$this->conf('table_prefix'),
 						$parent_section_id
 		);
-		$rs = self::$configuration['pdo_instance']->query($sql);
+		$rs = $this->conf('pdo')->query($sql);
 		$sections = $rs->fetchAll(PDO::FETCH_ASSOC);
 		foreach ($sections as &$section) {
 			$section['childs'] = $this->getSubSections_loop($section['id']);
@@ -433,13 +514,46 @@ class TWStats_UI extends TWStats {
 	public function getItemsFromSection($section_id) {
 		$sql = sprintf(
 						'select id,strkey,name from `%sitem` where `section_id` = %d',
-						self::$configuration['table_prefix'],
+						$this->conf('table_prefix'),
 						$section_id
 		);
-		$rs = self::$configuration['pdo_instance']->query($sql);
+		$rs = $this->conf('pdo')->query($sql);
 		$items = $rs->fetchAll(PDO::FETCH_ASSOC);
 		return $items;
 	}
+
+	public function CLI_Tree($section_id=0) {
+		$data = $this->getSubSections_loop($section_id);		
+		return $this->CLI_Tree_loop(0, $data);
+	}
+	
+	private function CLI_Tree_loop($level, $items, $last=false) {
+		$tree = '';
+		$decoration = '';
+		$margin = $last ? '    ' : '|   ';
+		if ($level)
+			$decoration = str_pad('', 4*($level-1), $margin).'|--';
+		
+		if (count($items)) {
+			$last = array_pop($items);
+		
+			foreach($items as $item => $info) {
+				$tree .= $decoration.$info['name']."\n";
+				$tree .= $this->CLI_Tree_loop($level+1, $info['childs']);
+			}		
+			
+			$decoration = '';
+			if ($level)
+				$decoration = str_pad('', 4*($level-1), $margin).'`--';
+			$tree .= $decoration.$last['name']."\n";
+			$tree .= $this->CLI_Tree_loop($level+1, $last['childs'], true);
+		}
+		
+		return $tree;
+	} 
+	
+	
+
 
 	/**
 	 * Renvoie les 3 chiffres du mois
@@ -450,12 +564,12 @@ class TWStats_UI extends TWStats {
 		$sql_cache = sprintf(
 						'select id,strkey,name from `%sitem` where `item_id` = %d' .
 						'and yearmonth = %d%d',
-						self::$configuration['table_prefix'],
+						$this->conf('table_prefix'),
 						$item_id,
 						$year,
 						$month
 		);
-		$rs = self::$configuration['pdo_instance']->query($sql_cache);
+		$rs = $this->conf('pdo')->query($sql_cache);
 		$rows = $rs->fetchAll(PDO::FETCH_ASSOC);
 		if (count($rows) != 1) {
 			$month_stats = $this->compileMonth($item_id, $year, $month);
@@ -467,6 +581,6 @@ class TWStats_UI extends TWStats {
 			return $rows[0];
 		}
 	}
-
+	public function conf($key) { return $this->_conf[$key]; }
 }
 

@@ -56,6 +56,7 @@ class TWStats_Counter {
 
 	 function __construct($path, $key, $conf) {
 		
+		
 		// Validation de la configuration
 		
 		if (!isset($conf['session_hash']) || !isset($conf['cookie_date_hash']) ||
@@ -81,13 +82,22 @@ class TWStats_Counter {
 		
 		if (!is_array($path) || count($path) < 1)
 			throw new InvalidArgumentException('Bad path or empty path');
+		
+		
+		// // protection
+		foreach ($path as &$token) {
+			$token = $this->string_simplification($token);
+		}
+		
 		$this->path = $path;
 
 		// Validation de la clé
 		
 		if ((string) $key == '')
 			throw new InvalidArgumentException('Empty key');
-		$this->_key  = $key;
+			
+			
+		$this->_key  = $this->string_simplification($key);
 		
 		$this->increments = 0;
 		
@@ -212,6 +222,9 @@ class TWStats_Counter {
 	 * @return int
 	 */
 	private function registerNewCounter($strkey, $section_id) {
+		
+		
+		$strkey
 		
 		$pdo = $this->conf('pdo');
 		$statement = $pdo->prepare(sprintf(
@@ -436,6 +449,47 @@ class TWStats_Counter {
 								  'day_date_start' => $day_date_start,
 								  'day_date_end' => $day_date_end));
 		return $statement->fetchAll(PDO::FETCH_ASSOC);
+	}
+	
+	/**
+	 * Cette fonction transforme une chaine de façon à ce qu'elle puisse
+	 * servir de clé proprement
+	 */
+	public function string_simplification($str) {
+		
+		$str = stripslashes($str);
+		$str = strtolower($str);
+		return $str;
+	}
+	
+	## Les deux fonctions suivantes sont issues de la librairie de
+	## ludovic, mercide voir avec lui pour obtenir ou proposer des
+	## améliorations.
+	
+	
+	public function remove_white_space($s, $replace='') {
+		$search = array("\t","\n","\r", chr(32), chr(194).chr(160));
+		$replace = (string) $replace;
+		return str_replace($search, $replace, $s);
+	}
+	
+	public function clean_filename($string) {
+		$search = array(
+			'@[èéêëÈÉÊË]@i',
+			'@[àáâãäåæÀÁÂÃÄÅÆ]@i',
+			'@[ìíîïÌÍÎÏ]@i',
+			'@[ùúûüÙÚÛÜ]@i',
+			'@[òóôõöøÒÓÔÕÖØ]@i',
+			'@[çÇ]@i',
+			'@[ðÐ]@i',
+			'@[ñÑ]@i',
+			'@[ýþÿÝÞß]@i',
+			'@[ ]@i',
+			'@[^a-zA-Z0-9_\.]@');
+		$replace = array('e', 'a', 'i', 'u', 'o', 'c', 'd', 'n', 'y',
+			'-', '-');
+		$simplified = preg_replace($search, $replace, $string);
+		return $simplified;
 	}
 
 }

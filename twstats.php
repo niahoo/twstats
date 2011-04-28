@@ -223,9 +223,6 @@ class TWStats_Counter {
 	 */
 	private function registerNewCounter($strkey, $section_id) {
 		
-		
-		$strkey
-		
 		$pdo = $this->conf('pdo');
 		$statement = $pdo->prepare(sprintf(
 						'insert into %scounters (strkey, section_id) VALUES (:strkey, :section_id)',

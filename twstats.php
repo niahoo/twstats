@@ -192,7 +192,7 @@ class TWStats_Counter {
 		$sql_insert = sprintf(
 						'insert into %ssections (name, parent_id) VALUES (\'%s\', %d)',
 						$this->conf('table_prefix'),
-						utf8_encode($name),
+						$name,
 						$parent_id
 		);
 		$pdo = $this->conf('pdo');
@@ -218,7 +218,7 @@ class TWStats_Counter {
 		$sql_insert = sprintf(
 						'insert into %scounters (`strkey`, section_id) VALUES (\'%s\', %d)',
 						$this->conf('table_prefix'),
-						utf8_encode($strkey),
+						$strkey,
 						$section_id
 		);
 // exit($sql_insert);

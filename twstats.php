@@ -454,9 +454,9 @@ class TWStats_Counter {
 	 */
 	public function string_simplification($str) {
 		
-		$str = clean_filename($str);
+		$str = $this->clean_filename($str);
 		$str = stripslashes($str);
-		$str = remove_white_space($str);
+		$str = $this->remove_white_space($str);
 		$str = strtolower($str);
 	
 		return $str;

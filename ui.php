@@ -132,6 +132,17 @@ class TWStats_UI {
 			return $rows[0];
 		}
 	}
+	
+	
+	public function getHtmlSectionsTree_cached($template) {
+		$tree = $this->getSectionsTree();
+		var_dump($tree);
+	}
+	
+	
+	
+	
+	
 	public function conf($key) { return $this->_conf[$key]; }
 }
 

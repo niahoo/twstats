@@ -135,8 +135,11 @@ class TWStats_UI {
 	
 	
 	public function getHtmlSectionsTree_cached($template) {
-		$tree = $this->getSectionsTree();
-		print_r($tree);
+		$tree_root = $this->getSectionsTree();
+		$sections = $tree_root['childs'];
+		ob_start();
+		require $template;
+		return ob_get_clean(); 
 	}
 	
 	

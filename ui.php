@@ -36,7 +36,7 @@ class TWStats_UI {
 	public function getSubSections_loop($parent_section_id) {
 		$sections = array();
 		$sql = sprintf(
-						'select * from `%ssections` where `parent_id` = %d',
+						'select * from `%ssections` where `parent_id` = %d order by display_name,name;',
 						$this->conf('table_prefix'),
 						$parent_section_id
 		);

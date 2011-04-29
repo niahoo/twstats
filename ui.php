@@ -1,3 +1,4 @@
+<?php
 class TWStats_UI {
 
 	private $_conf;

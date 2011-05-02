@@ -28,6 +28,7 @@ class TWStats_Counter {
 	public $_path;
 
 	public $_key;
+	public $_keyname;
 	
 	public $_counter_id;
 	public $_section_id;
@@ -124,7 +125,7 @@ class TWStats_Counter {
 	}
 	
 	public function counter_id() {
-		if (empty($this->_key_id)) {
+		if (empty($this->_counter_id)) {
 			$query = sprintf('select * from %scounters where strkey like
 			\'%s\' and section_id = %d',
 			$this->conf('table_prefix'),
@@ -234,17 +235,30 @@ class TWStats_Counter {
 			throw $e;
 		}
 		
+		$key_id = $pdo->lastInsertId();
 		
-		return intval($pdo->lastInsertId());
+		if (isset($this->_keyname)) {
+			$statement = $pdo->prepare('update counters set name = :name where id = :id');
+			try {
+				$statement->execute(array('id' => $key_id, 'name' => $this->_keyname));
+			} catch (PDOException $e) {
+				// ici on ne fait rien. pour le moment, inutile de
+				// bloquer l'application pour un nom alors que le 
+				// décompte fonctionne
+			}
+		}
+		
+		return intval($key_id);
 	}
 
-	/*	 * é
-	 * Cherche une section dans la base par son nom et le nom de ses parents
-	 * En cherchant d'abord par le nom, si plusieurs sections de même nom sont
-	 * trouvées, on tente de trouver la bonne grâce à son parent
-	 * @param array $sections
+	/* permet de remplir le champ d'affichage des clés en base de données
+	 * automatiquement, afin d'avoir un affichage plus lisible
+	 * 
+	 * Utilisé dans la fonction registerNewCounter
 	 */
-
+	public function set_key_name($name) {
+		$this->_keyname = $name;
+	}
 	
 
 //==============================================================================

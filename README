@@ -1,5 +1,5 @@
 # Compteur de visites TwStats
 
 Ce simple compteur gère des clés dans une arborescence, et à chaque clé 
-peut-être associé quitodiennement un nombre de hits, un nombre de visites 
+peut-être associé quotidiennement un nombre de hits, un nombre de visites 
 et un nombre de visites uniques.

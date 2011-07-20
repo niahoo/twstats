@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS `counters`;
 CREATE TABLE `counters` (
   `id` int(10) NOT NULL auto_increment,
   `strkey` varchar(50) NOT NULL,
-  `display_name` varchar(100) NOT NULL,
+  `display_name` varchar(100) NULL,
   `section_id` int(10) NOT NULL,
   PRIMARY KEY  (`id`),
   UNIQUE KEY `counter_by_section` (`strkey`,`section_id`)

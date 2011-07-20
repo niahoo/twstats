@@ -1,4 +1,5 @@
 <?php
+
 class TWStats_UI {
 
 	private $_conf;
@@ -6,27 +7,27 @@ class TWStats_UI {
 	public function __construct($conf) {
 		if (!($conf['pdo'] instanceof PDO))
 			throw new InvalidArgumentException('conf[pdo] is not a PDO instance');
-			
-		$this->_conf = $conf;	
-			
+
+		$this->_conf = $conf;
+
 		if (!isset($this->_conf['table_prefix']))
 			$this->_conf['table_prefix'] = '';
-		
-		$this->_pdo  = $conf['pdo'];
+
+		$this->_pdo = $conf['pdo'];
 		$this->_conf['previous_pdo_errmode'] = $this->_pdo->getAttribute(PDO::ATTR_ERRMODE);
 		$this->_pdo->setAttribute(
 			PDO::ATTR_ERRMODE,
 			PDO::ERRMODE_EXCEPTION
-		);	
+		);
 	}
-	
-	
+
 	public function __destruct() {
 		$this->_pdo->setAttribute(
 			PDO::ATTR_ERRMODE,
 			$this->_conf['previous_pdo_errmode']
 		);
 	}
+
 	/**
 	 * Renvoie les sous-sections de la section passée en paramètre,
 	 * on passe l'ID
@@ -36,9 +37,9 @@ class TWStats_UI {
 	public function getSubSections_loop($parent_section_id) {
 		$sections = array();
 		$sql = sprintf(
-						'select * from `%ssections` where `parent_id` = %d order by display_name,name;',
-						$this->conf('table_prefix'),
-						$parent_section_id
+				'select * from `%ssections` where `parent_id` = %d order by display_name,name;',
+				$this->conf('table_prefix'),
+				$parent_section_id
 		);
 		$rs = $this->conf('pdo')->query($sql);
 		$sections = $rs->fetchAll(PDO::FETCH_ASSOC);
@@ -56,17 +57,17 @@ class TWStats_UI {
 	 */
 	public function getSectionsTree() {
 		return array(
-			'name' => 'root',
-			'id' => 0,
-			'childs' => $this->getSubSections_loop(0)
+		    'name' => 'root',
+		    'id' => 0,
+		    'childs' => $this->getSubSections_loop(0)
 		);
 	}
 
 	public function getItemsFromSection($section_id) {
 		$sql = sprintf(
-						'select id,strkey,name from `%sitem` where `section_id` = %d',
-						$this->conf('table_prefix'),
-						$section_id
+				'select id,strkey,name from `%sitem` where `section_id` = %d',
+				$this->conf('table_prefix'),
+				$section_id
 		);
 		$rs = $this->conf('pdo')->query($sql);
 		$items = $rs->fetchAll(PDO::FETCH_ASSOC);
@@ -74,37 +75,34 @@ class TWStats_UI {
 	}
 
 	public function CLI_Tree($section_id=0) {
-		$data = $this->getSubSections_loop($section_id);		
+		$data = $this->getSubSections_loop($section_id);
 		return $this->CLI_Tree_loop(0, $data);
 	}
-	
+
 	private function CLI_Tree_loop($level, $items, $last=false) {
 		$tree = '';
 		$decoration = '';
 		$margin = $last ? '    ' : '|   ';
 		if ($level)
-			$decoration = str_pad('', 4*($level-1), $margin).'|--';
-		
+			$decoration = str_pad('', 4 * ($level - 1), $margin) . '|--';
+
 		if (count($items)) {
 			$last = array_pop($items);
-		
-			foreach($items as $item => $info) {
-				$tree .= $decoration.$info['name']."\n";
-				$tree .= $this->CLI_Tree_loop($level+1, $info['childs']);
-			}		
-			
+
+			foreach ($items as $item => $info) {
+				$tree .= $decoration . $info['name'] . "\n";
+				$tree .= $this->CLI_Tree_loop($level + 1, $info['childs']);
+			}
+
 			$decoration = '';
 			if ($level)
-				$decoration = str_pad('', 4*($level-1), $margin).'`--';
-			$tree .= $decoration.$last['name']."\n";
-			$tree .= $this->CLI_Tree_loop($level+1, $last['childs'], true);
+				$decoration = str_pad('', 4 * ($level - 1), $margin) . '`--';
+			$tree .= $decoration . $last['name'] . "\n";
+			$tree .= $this->CLI_Tree_loop($level + 1, $last['childs'], true);
 		}
-		
-		return $tree;
-	} 
-	
-	
 
+		return $tree;
+	}
 
 	/**
 	 * Renvoie les 3 chiffres du mois
@@ -113,12 +111,12 @@ class TWStats_UI {
 	 */
 	public function readMonth($item_id, $year, $month) {
 		$sql_cache = sprintf(
-						'select id,strkey,name from `%sitem` where `item_id` = %d' .
-						'and yearmonth = %d%d',
-						$this->conf('table_prefix'),
-						$item_id,
-						$year,
-						$month
+				'select id,strkey,name from `%sitem` where `item_id` = %d' .
+				'and yearmonth = %d%d',
+				$this->conf('table_prefix'),
+				$item_id,
+				$year,
+				$month
 		);
 		$rs = $this->conf('pdo')->query($sql_cache);
 		$rows = $rs->fetchAll(PDO::FETCH_ASSOC);
@@ -128,24 +126,23 @@ class TWStats_UI {
 				$this->storeMonthCache($month_stats);
 			}
 			return $month_stats;
-		} else {
+		}
+		else {
 			return $rows[0];
 		}
 	}
-	
-	
+
 	public function getHtmlSectionsTree_cached($template) {
 		$tree_root = $this->getSectionsTree();
 		$sections = $tree_root['childs'];
 		ob_start();
 		require $template;
-		return ob_get_clean(); 
+		return ob_get_clean();
 	}
-	
-	
-	
-	
-	
-	public function conf($key) { return $this->_conf[$key]; }
+
+	public function conf($key) {
+		return $this->_conf[$key];
+	}
+
 }
 

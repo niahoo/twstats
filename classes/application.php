@@ -63,6 +63,8 @@ class TWStats_Application {
 		return new TWStats_Section($path, $this);
 	}
 
+
+
 	public function create_section($path) {
 		$section_to_create = $this->get_section($path);
 		$parent = $section_to_create->get_parent();

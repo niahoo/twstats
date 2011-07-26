@@ -73,7 +73,6 @@ class TWStats_Counter {
 		$statement = $this->_app->pdo_prepare($sql_update);
 		$statement->execute(array('counter_id' => $this->id()));
 		$rowcount = $statement->rowCount();
-		var_dump('rowcount : ' . $rowcount);
 
 		if ($rowcount != 1)
 			if ($new_day_if_not_exists) {

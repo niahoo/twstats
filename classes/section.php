@@ -12,6 +12,9 @@ class TWStats_Section {
 	 */
 	private $_app;
 
+
+
+
 	public function __construct(array $path, TWStats_Application $app) {
 		//		Validation des sections
 		if (!is_array($path))
@@ -25,6 +28,16 @@ class TWStats_Section {
 		$this->_app = $app;
 	}
 
+	private function set_id($id) {
+
+		$this->_id = $id;
+	}
+
+	private function set_display_name($str) {
+
+		$this->_display_name = $str;
+	}
+
 	public function id($prevent_recurse=false) {
 
 		if (count($this->_path) == 0) { // ROOT section
@@ -32,9 +45,7 @@ class TWStats_Section {
 		}
 		elseif (empty($this->_id)) {
 
-			echo "
-I AM EMPTY MOTHERFUCKER !
-";
+
 
 
 			// on récupère la section par son nom et l'id de son parent
@@ -76,6 +87,11 @@ I AM EMPTY MOTHERFUCKER !
 		return $this->_id;
 	}
 
+	public function display_name() {
+		return empty($this->_display_name) ? $this->_name :
+			$this->_display_name;
+	}
+
 	public function create() {
 		$parent = $this->get_parent();
 		$parent_id = $parent->id();
@@ -96,6 +112,31 @@ I AM EMPTY MOTHERFUCKER !
 		$path_copy = $this->_path;
 		array_pop($path_copy);
 		return $this->_app->get_section($path_copy);
+	}
+
+	public function childs() {
+		$myid = $this->id();
+		$query = sprintf(
+				'select * from %s where parent_id = :pid',
+				$this->_app->get_table_name('sections')
+		);
+		$statement = $this->_app->pdo_prepare($query);
+		$statement->execute(array('pid' => $myid));
+
+		$sections_a = $statement->fetchAll(PDO::FETCH_ASSOC);
+		$sections = array();
+		foreach ($sections_a as $section) {
+
+			$child_path = $this->_path;
+			array_push($child_path, $section['name']);
+
+			$s = new self($child_path, $this->_app);
+			$s->set_id($section['id']);
+			$s->set_display_name($section['display_name']);
+			$sections[] = $s;
+		}
+
+		return $sections;
 	}
 
 }

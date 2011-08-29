@@ -54,6 +54,22 @@ class TWStats_Application {
 		return new TWStats_Counter($key, $section, $this);
 	}
 
+	public function get_counter_by_id($id) {
+
+		$table_name = $this->get_table_name('counters');
+		$query = 'select * from counters where id = :id';
+		$statement = $this->pdo_prepare($query);
+		$statement->execute(array('id' => $id));
+		$row = $statement->fetch(PDO::FETCH_ASSOC);
+		$section_id = $row['section_id'];
+		$section = $this->get_section_by_id($section_id);
+
+
+		$counter = new TWStats_Counter($row['strkey'], $section, $this);
+		$counter->set_id($id);
+		return $counter;
+	}
+
 	/**
 	 *
 	 * @param <type> $path
@@ -63,6 +79,14 @@ class TWStats_Application {
 		return new TWStats_Section($path, $this);
 	}
 
+	public function get_section_by_id($id) {
+		$section = new TWStats_Section(array(), $this);
+		$section->set_id($id);
+		$section->set_path_from_id();
+		return $section;
+	}
+
+	
 
 
 	public function create_section($path) {

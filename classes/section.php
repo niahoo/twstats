@@ -1,5 +1,11 @@
 <?php
 
+/*
+ * Attention, la structure des sections définies de façon unique par le couple
+ * name + parent_id n'est pas une bonne idée.
+ * => refaire l'appli plus simplement
+ */
+
 class TWStats_Section {
 
 	private $_path;
@@ -28,9 +34,35 @@ class TWStats_Section {
 		$this->_app = $app;
 	}
 
-	private function set_id($id) {
+	public function set_id($id) {
 
 		$this->_id = $id;
+	}
+
+	public function set_path_from_id() {
+		if ($this->_id == 0) {
+			$this->_name = 'ROOT_SECTION';
+			$this->_path = array();
+			return;
+		}
+		// else
+		$sql_id_by_name = sprintf(
+				'select * from %s where id = :id',
+				$this->_app->get_table_name('sections')
+		);
+		$statement = $this->_app->pdo_prepare($sql_id_by_name);
+		$query_args = array(
+		    'id' => $this->_id
+		);
+		$statement->execute($query_args);
+		$rs = $statement->fetch(PDO::FETCH_ASSOC);
+		$this->_name = $rs['name'];
+		$parent = $this->_app->get_section_by_id($rs['parent_id']);
+		$this->_path = array_merge($parent->get_path(), array($this->_name));
+	}
+
+	public function get_path() {
+		return $this->_path;
 	}
 
 	private function set_display_name($str) {
@@ -137,6 +169,32 @@ class TWStats_Section {
 		}
 
 		return $sections;
+	}
+
+	public function get_counters() {
+		$query = sprintf(
+				'select * from %s where section_id = :section_id',
+				$this->_app->get_table_name('counters')
+		);
+		$statement = $this->_app->pdo_prepare($query);
+		$statement->execute(array('section_id' => $this->id()));
+
+		$counters_a = $statement->fetchAll(PDO::FETCH_ASSOC);
+		$counters = array();
+		foreach ($counters_a as $ct) {
+			$counter = $this->_app->get_counter($ct['strkey'], $this);
+			$counter->set_id($ct['id']);
+			$counters[] = $counter;
+		}
+		return $counters;
+	}
+
+	public function get_counters_a() {
+		$counters = array();
+		foreach ($this->get_counters() as $counter) {
+			$counters[] = $counter->dump();
+		}
+		return $counters;
 	}
 
 }
